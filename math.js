@@ -286,7 +286,8 @@ var quaternion = {
 function pretty_print(array){
     var d = Math.sqrt(array.length);
     for (var n = 0; n<d; n++){
-        console.log(array.slice((d*n),(d*n+d)));
+        var temp = (array.slice((d*n),(d*n+d))).flat();
+        console.log(temp);
     }
 }
 
