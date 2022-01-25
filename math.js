@@ -1,7 +1,7 @@
 //// Custom header thing for the math stuff I need in my projects... This is all done in pure javascript - no libraries used for now (except js Math)
 
 const PI = 3.141592653589793238462643383;
-
+const E = 2.71828;
 
 //// Didn't want to, but kinda thought it was best - defining the 2x2 matrix operations as well. Mostly cause adjugate computations & stuff use 2x2 matrices
 var mat2 = {
