@@ -91,16 +91,16 @@ var mat3 = {
 
     adjugate: function(matrix){
         const o = matrix;       /// just the original matrix with a short variable name because it helps
-        var temp = new Float32Array(o.length);
-        var m1 = mat2.det([o[4],o[5],o[7],o[8]]);
-        var m2 = mat2.det([o[3],o[5],o[6],o[8]]);
-        var m3 = mat2.det([o[3],o[4],o[6],o[7]]);
-        var m4 = mat2.det([o[1],o[2],o[7],o[8]]);
-        var m5 = mat2.det([o[0],o[2],o[6],o[8]]);
-        var m6 = mat2.det([o[0],o[1],o[6],o[7]]);
-        var m7 = mat2.det([o[1],o[2],o[4],o[5]]);
-        var m8 = mat2.det([o[0],o[2],o[3],o[5]]);
-        var m9 = mat2.det([o[0],o[1],o[3],o[4]]);
+        let temp = new Float32Array(o.length);
+        let m1 = mat2.det([o[4],o[5],o[7],o[8]]);
+        let m2 = mat2.det([o[3],o[5],o[6],o[8]]);
+        let m3 = mat2.det([o[3],o[4],o[6],o[7]]);
+        let m4 = mat2.det([o[1],o[2],o[7],o[8]]);
+        let m5 = mat2.det([o[0],o[2],o[6],o[8]]);
+        let m6 = mat2.det([o[0],o[1],o[6],o[7]]);
+        let m7 = mat2.det([o[1],o[2],o[4],o[5]]);
+        let m8 = mat2.det([o[0],o[2],o[3],o[5]]);
+        let m9 = mat2.det([o[0],o[1],o[3],o[4]]);
         return [m1,m2,m3,m4,m5,m6,m7,m8,m9];
     },
 
@@ -145,20 +145,7 @@ var mat3 = {
         return final;
         
     }
-
-
-    
-
 }
-
-
-
-
-
-
-
-
-
 
 
 
@@ -206,7 +193,70 @@ var mat4 = {
         temp[11] += vec3[2];
 
         return temp;
+    },
+
+    determinant: function(matrix){
+        var m = matrix;   /// Just make the name shorter cause writting this next part is a pain.
+        //var det = (m[0]*m[5]*m[10]*m[15]) + (m[4]*m[9]*m[14]*m[3]) + (m[8]*m[13]*m[2]*m[7]) + (m[12]*m[1]*m[6]*m[11]);
+        //console.log(det);
+        //det = det-((m[3]*m[6]*m[9]*m[12]) + (m[7]*m[10]*m[13]*m[0]) + (m[11]*m[14]*m[1]*m[4]) + (m[15]*m[2]*m[5]*m[8]));
+        //var det = m[0]*(m[5]*m[10]*m[15]+m[9]*m[14]*m[6]+m[13]*m[6]*m[11] - (m[7]*m[10]*m[13]+m[11]*m[14]*m[5]+m[15]*m[6]*m[9]));
+        
+        var det1 = m[0]*mat3.det([m[5],m[6],m[7],m[9],m[10],m[11],m[13],m[14],m[15]]);
+        var det2 = m[1]*mat3.det([m[4],m[6],m[7],m[8],m[10],m[11],m[12],m[14],m[15]]);
+        var det3 = m[2]*mat3.det([m[4],m[5],m[7],m[8],m[9],m[11],m[12],m[13],m[15]]);
+        var det4 = m[3]*mat3.det([m[4],m[5],m[6],m[8],m[9],m[10],m[12],m[13],m[14]]);
+
+        
+    
+        return [det1-det2+det3-det4];
+
+
+    },
+
+
+    /// This is not designed for speed or efficiency...
+    invert: function(matrix){
+        var m = matrix;
+
+        
+        
+        var determinant_mat4 = mat4.determinant(matrix);
+        if (determinant_mat4 == 0) {throw 'determinant equels zero';}
+        var temp = mat4.adjoint(matrix);
+        console.log(temp);
+        temp = scale(temp,1/determinant_mat4);
+        return temp;
+
+    },
+
+    adjoint: function(matrix){
+        var m = matrix;
+
+        var e0 = mat3.det([m[5],m[6],m[7],m[9],m[10],m[11],m[13],m[14],m[15]]);
+        var e1 = -mat3.det([m[4],m[6],m[7],m[8],m[10],m[11],m[12],m[14],m[15]]);
+        var e2 = mat3.det([m[4],m[5],m[7],m[8],m[9],m[11],m[12],m[13],m[15]]); 
+        var e3 = -mat3.det([m[4],m[5],m[6],m[8],m[9],m[10],m[12],m[13],m[14]]); 
+        var e4 = mat3.det([m[1],m[2],m[3],m[9],m[10],m[11],m[13],m[14],m[15]]);
+        var e5 = -mat3.det([m[0],m[2],m[3],m[8],m[10],m[11],m[12],m[14],m[15]]);
+        var e6 = mat3.det([m[0],m[1],m[3],m[8],m[9],m[11],m[12],m[13],m[15]]); 
+        var e7 = -mat3.det([m[0],m[1],m[2],m[8],m[9],m[10],m[12],m[13],m[14]]); 
+        var e8 = mat3.det([m[1],m[2],m[3],m[5],m[6],m[7],m[13],m[14],m[15]]);
+        var e9 = -mat3.det([m[0],m[2],m[3],m[4],m[6],m[7],m[12],m[14],m[15]]);
+        var e10 = mat3.det([m[0],m[1],m[3],m[4],m[5],m[7],m[12],m[13],m[15]]);
+        var e11 = -mat3.det([m[0],m[1],m[2],m[4],m[5],m[6],m[12],m[13],m[14]]);
+        var e12 = mat3.det([m[1],m[2],m[3],m[5],m[6],m[7],m[9],m[10],m[11]]); 
+        var e13 = -mat3.det([m[0],m[2],m[3],m[4],m[6],m[7],m[8],m[10],m[11]]); 
+        var e14 = mat3.det([m[0],m[1],m[3],m[4],m[5],m[7],m[8],m[9],m[11]]);
+        var e15 = -mat3.det([m[0],m[1],m[2],m[4],m[5],m[6],m[8],m[9],m[10]]);
+
+        var temp = transpose([e0,e1,e2,e3,e4,e5,e6,e7,e8,e9,e10,e11,e12,e13,e14,e15]);
+        return temp;
+
     }
+
+
+
 
 
 
@@ -285,8 +335,12 @@ var quaternion = {
 // Function to 'pretty print' matrices in the console. Useful for debugging
 function pretty_print(array){
     var d = Math.sqrt(array.length);
+    var temp = [];
     for (var n = 0; n<d; n++){
-        console.log((array.slice((d*n),(d*n+d))).toString());
+        temp.push(array[n].toFixed(2));
+    }
+    for (var n = 0; n<d; n++){
+        console.log((temp.slice((d*n),(d*n+d))));
     }
 }
 
@@ -307,4 +361,14 @@ function transpose(matrix){
         //console.log(dim*(num%dim)+(~~(num/dim)));
     }
     return temp;
+}
+
+/// Used to computer a rainbow color gradient from a parameter t.
+function color_func(t){
+
+    var r = Math.sin(t);
+    var g = Math.sin(t+PI/4);
+    var b = Math.sin(t+PI/2);
+
+    return [r*r,g*g,b*b]
 }
