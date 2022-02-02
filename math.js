@@ -1,4 +1,33 @@
-//// Custom header thing for the math stuff I need in my projects... This is all done in pure javascript - no libraries used for now (except js Math)
+//// Custom header thing for the math stuff I need in my projects... This is all done in pure javascript - no libraries used for now (except regular ol' js Math)
+
+//// General structure / overview...
+    
+    /// Matrices:
+        // 2x2, 3x3, 4x4 matrix math has been implemented to a limited degree. 
+        // Each matrix type is defined as a set of functions that operate on a Float32Array - allowing for one to directly manipulate elements easily.
+        // Matrices are indexed using the row-major format
+
+    //// Vectors:
+        // Relates heavily to the matrix math...
+        // Also defined as arrays.
+        // idk
+        
+    //// Differential equations:
+        // Nothing at the moment.
+    
+
+
+/// PERSONAL NOTES & To-do list:
+    
+    // Implement faster inverse algorithms...
+    // Better error detection / define the interaction between types
+    // Finish the matrix math, but don't bother reinventing the wheel... add the more useful & less common functions
+    // Possible use of complex numbers...
+    // Derivative calculations & numerical integration?
+    
+
+
+
 
 const PI = 3.141592653589793238462643383;
 const E = 2.71828;
@@ -254,14 +283,6 @@ var mat4 = {
         return temp;
 
     }
-
-
-
-
-
-
-
-
 }
 
 
@@ -363,7 +384,7 @@ function transpose(matrix){
     return temp;
 }
 
-/// Used to computer a rainbow color gradient from a parameter t.
+/// Used to compute a rainbow color gradient from a parameter t.
 function color_func(t){
 
     var r = Math.sin(t);
