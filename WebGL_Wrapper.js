@@ -95,6 +95,22 @@ var primative = {
         -1,-1
     ],
 
+    square2: class {
+        constructor(canvas_context,pos=[0,0,0],scale=[1,1,1]){
+            this.context = context;
+            this.pos = pos;
+            this.scale = scale;
+
+            this.vertices = canvas_context.makeBuffer(gl.ARRAY_BUFFER,new Float32Array(primative.square_screen));
+            //this.indices = canvas_context.makeBuffer(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(bounding_indices));
+        }
+
+        draw(gl,shader){
+            gl.bindBuffer(this.vertices);
+            gl.drawArrays(gl.TRIANGLE_STRIP,0,6);
+        }
+    },
+
     draw: function(type){
 
     }
@@ -134,7 +150,7 @@ class Scene {
         let tempBuffer = this.context.createBuffer();
         this.context.bindBuffer(type, tempBuffer);
         this.context.bufferData(type, data, this.context.STATIC_DRAW);
-        // this.gl.bindBuffer(type, null);
+        this.gl.bindBuffer(type, null);
         return tempBuffer;
     
     }
@@ -165,17 +181,17 @@ class Shader {
         context.attachShader(this.program, this.fragment_shader);
         context.linkProgram(this.program);
 
-        if (vertex_code = defaultVertex){
-            context.useProgram(this.program);
-            this.world_loc = context.getUniformLocation(this.program,"world");
-            this.pos_loc = context.getUniformLocation(this.program,"pos");
-            this.rot_loc = context.getUniformLocation(this.program,"rot");
-            this.scale_loc = context.getUniformLocation(this.program,"scale");
-            context.uniformMatrix2fv(this.world_loc,false,[1,0,0,1]);
-            context.uniform2fv(this.pos_loc,[0,0]);
-            context.uniformMatrix2fv(this.rot_loc,false,[1,0,0,1]);
-            context.uniformMatrix2fv(this.scale_loc,false,[1,0,0,1]);
-        }
+        //if (vertex_code = defaultVertex){
+        //    context.useProgram(this.program);
+        //    this.world_loc = context.getUniformLocation(this.program,"world");
+        //    this.pos_loc = context.getUniformLocation(this.program,"pos");
+        //    this.rot_loc = context.getUniformLocation(this.program,"rot");
+        //    this.scale_loc = context.getUniformLocation(this.program,"scale");
+        //    context.uniformMatrix2fv(this.world_loc,false,[1,0,0,1]);
+        //    context.uniform2fv(this.pos_loc,[0,0]);
+        //    context.uniformMatrix2fv(this.rot_loc,false,[1,0,0,1]);
+        //    context.uniformMatrix2fv(this.scale_loc,false,[1,0,0,1]);
+        //}
     }
     
     // Function to bind the vertex & index buffers
@@ -196,7 +212,48 @@ class Shader {
 
 }
 
+class camera{
+    constructor(pos,fov=60,ratio){
+        this.target = [0,0,0];
+        this.dir = [-pos[0],-pos[1],-pos[2]];
+        this.up = [0,1,0];
+        this.right = vec3.normalize(vec3.cross(this.dir,this.up));
+        let temp1 = [this.right[0],this.right[1],this.right[2],0,this.up[0],this.up[1],this.up[2],0,this.dir[0],this.dir[1],this.dir[2],0,0,0,0,1];
+        let temp2 = mat4.create();
+        temp2[3] = -pos[0];
+        temp2[7] = -pos[1];
+        temp2[11] = -pos[2];
+        this.fov = fov;
+        this.lookAt = mat4.dot(temp1,temp2);
+        this.projection = persepective(fov,0.1,1000.0,ratio);
+    }
+    viewportChanged(aspect_ratio){
+        this.projection = persepective(this.fov,0.1,1000.0,aspect_ratio);
+    }    
+}
+class OrbitCam extends camera{
+    constructor(position,fov,aspect_ratio){
+        super(position,fov=fov,aspect_ratio);
+        this.context = 0;//context;
+        this.startxy = [0,0];
+        this.deltaxy = [0,0];
+        this.totalxy = [0,0];
+        this.model = 0;
+    }
 
+    rotate(distxy,delta,model_rot,old){
+
+        
+        this.totalxy[0] += 0.3*delta*distxy[1];
+        this.totalxy[1] += 0.3*delta*distxy[0];
+        model_rot = gmat4.rotate(old,-this.totalxy[0]*3.14/360,[0,0,1]);
+        let temp = gmat4.rotate(model_rot,-this.totalxy[1]*3.14/360,[0,1,0]);
+        model_rot = temp;
+        return temp;
+        
+        
+    }
+}
 /// The following functions are used to handle off-screen rendering processes.
 /// I should probably condense these into a class - then the user will be able to manually adjust the specifics of the initialization process...
 
@@ -204,12 +261,10 @@ function genScreenTexture(gl,width,height){
     // Receives a WebGL context, x-resolution, & y-resolution. Returns a new texture to render to.
     // Returns the WebGL reference to this texture.
     gl.getExtension('OES_texture_float');
-
     let target_texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D,target_texture);
     gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,width,height,0,gl.RGBA,gl.FLOAT,null);
     //gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_BASE_LEVEL,0);
-
     gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
     //gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
@@ -252,7 +307,7 @@ function loopFrame(render_loop){
 
 class line_primative{
     // start_pos & end_pos are 2-vectors representing the start & end coordinates of the line
-    constructor(start_pos,end_pos,thickness=0.5,color=[0,1.0,0.0]){
+    constructor(start_pos,end_pos,thickness=0.05,color=[0,1.0,0.0]){
         var s = thickness/4;
         this.start = [start_pos[0],start_pos[1]];
         this.end = [end_pos[0],end_pos[1]];
@@ -284,12 +339,12 @@ class line_primative{
 
 
 class parametric_curve_2d{
-    constructor(x_func,y_func,start,end,num){
+    constructor(x_func,y_func,start,end,num,thick=0.01){
         this.x_function = x_func;
         this.y_function = y_func;
         this.num = num;
         this.step = (end-start)/num;
-        this.thickeness = 0.05;
+        this.thickeness = thick;
         this.start = start;
         this.end = end;
     }
@@ -313,7 +368,7 @@ function curve_create(curve,x_function,y_function,step,num){
     let old = [fx(0+curve.start),fy(0+curve.start)];
     for (var n = 0; n<curve.num; n++){
         let temp = [fx((n+1)*(step)+curve.start),fy((n+1)*(step)+curve.start)];
-        (curves).push(new line_primative(old,temp,thickness=0.01,color=color_func(n*step)));
+        (curves).push(new line_primative(old,temp,thickness=curve.thickeness,color=color_func(n*step)));
         old = temp;
     }
     return curves;
@@ -336,5 +391,119 @@ class arrow extends line_primative{
         this.pos = [this.start[0]-s*norm[0],this.start[1]-s*norm[1]];
         this.rotation = [diff[0]/length,-diff[1]/length,diff[1]/length,diff[0]/length];
         this.norm_scale = [length,0,0,thickness];
+    }
+}
+
+
+
+
+
+
+
+// Function designed to take a function as input & produce a 3D surface... or at least the vertices & indices required.
+function R3_Verts(some_functionx,some_functiony,some_functionz,resolution=150) {
+    var rangex = PI+PI/150;
+    var rangey = 2*PI+0.1;
+    var gridx = resolution;
+    var gridy = resolution;
+    var stepx = rangex/resolution;
+    var stepy = rangey/resolution;
+
+
+
+    let initialx = -PI/2;
+    let initialy = -PI;
+
+    var R3_verticies = [];
+
+
+    var R3_indices = [];
+    var R3_normals = [];
+    var R3_normals2 = [];
+
+
+    for (var i = 0; i<gridx; i++){
+        for (var j = 0; j<gridy; j++){
+            var index_x = stepx*i + initialx;
+            var index_y = stepy*j + initialy;
+    
+            R3_verticies.push(some_functionx(index_x,index_y));
+            R3_verticies.push(some_functiony(index_x,index_y));
+            R3_verticies.push(some_functionz(index_x,index_y));
+    
+        }
+    }
+    for (var i = 0; i<gridx; i++){
+        for (var j = 0; j<gridy; j++){
+            var index_x = stepx*i + initialx;
+            var index_y = stepy*j + initialy;
+
+            let v1 = [some_functionx(index_x,index_y),some_functiony(index_x,index_y),some_functionz(index_x,index_y)];
+            let v2 = [some_functionx(index_x+stepx,index_y),some_functiony(index_x,index_y),some_functionz(index_x+stepx,index_y)];
+            let v3 = [some_functionx(index_x,index_y),some_functiony(index_x,index_y+stepy),some_functionz(index_x,index_y+stepy)];
+
+            let vc1 = [v2[0]-v1[0],v2[1]-v1[1],v2[2]-v1[2]];
+            let vc2 = [v3[0]-v1[0],v3[1]-v1[1],v3[2]-v1[2]];
+            let final = vec3.normalize(vec3.cross(vc1,vc2));
+            //console.log(final);
+            R3_normals.push(final);
+    
+        }
+    }
+    
+    for (var i = 0; i<gridx-1; i++){
+        for (var j = 0; j<gridy-1; j++){
+    
+            var v = gridx*i + j;
+    
+            R3_indices.push(v);
+            R3_indices.push(v+1);
+            R3_indices.push(v+gridx+1);
+    
+            R3_indices.push(v);
+            R3_indices.push(v+gridx+1);
+            R3_indices.push(v+gridx);
+            //R3_indices.push(v);
+            //R3_indices.push(v+gridx);
+            //R3_indices.push(v+gridx+1);
+    
+    
+        }
+    }
+
+    for (var i = 0; i<gridx-1; i++){
+        for (var j = 0; j<gridy-1; j++){
+            let index = i*(gridx)+j;
+    
+
+            R3_indices.push(R3_normals[v]);
+            R3_indices.push(R3_normals[v+1]);
+            R3_indices.push(R3_normals[v+gridx+1]);
+    
+            R3_indices.push(R3_normals[v]);
+            R3_indices.push(R3_normals[v+gridx+1]);
+            R3_indices.push(R3_normals[v+gridx]);
+            //R3_indices.push(v);
+            //R3_indices.push(v+gridx);
+            //R3_indices.push(v+gridx+1);
+    
+    
+        }
+    }
+    //console.log(R3_normals)
+
+    return [R3_verticies,R3_indices,R3_normals.flat()];
+
+}
+
+class surface {
+    constructor(eq1,eq2,eq3){
+        let fx = function(u,v) {return 0.5*(2-Math.cos(v))*Math.cos(u);}
+        let fy = function(u,v) {return 0.5*(2-Math.cos(v))*Math.sin(u);}
+        let fz = function(u,v) {return 0.5*Math.sin(v)};
+        let surface = R3_Verts(eq1,eq2,eq3);
+        this.verts = surface[0];
+        this.indices = surface[1];
+        this.normals = surface[2];
     }
 }

@@ -158,7 +158,7 @@ var mat3 = {
         /// Normalize the rotation axis cause it's nicer to work with...
         var id = mat3.create();
         const normalized_axis = vec3.normalize(axis);
-        const compx_angle = vec3.angle(normalized_axis,[1,0,1]);
+        const compx_angle = vec3.angle(normalized_axis,[1,0,0]);
         const compy_angle = vec3.angle([normalized_axis[0],0,normalized_axis[2]],[0,0,1]);
         const compz_angle = vec3.angle([0,0,normalized_axis[2]],[0,0,0]);
 
@@ -173,9 +173,46 @@ var mat3 = {
 
         return final;
         
+    },
+
+    rotateN2: function(theta,axis=[1,0,0]){
+        let omc = 1-Math.cos(theta);
+        let ct = Math.cos(theta);
+        let st = Math.sin(theta);
+        let Rx = axis[0];
+        let Ry = axis[1];
+        let Rz = axis[2];
+
+        let temp = new Float32Array(9);
+
+        temp[0] = ct + Rx*Rx*omc;
+        temp[1] = Rx*Ry*omc - Rz*st;
+        temp[2] = Rx*Rz*omc + Ry*st;
+        temp[3] = Ry*Rx*omc + Rz*st;
+        temp[4] = ct + Ry*Ry*omc;
+        temp[5] = Ry*Rz*omc - Rx*st;
+        temp[6] = Rz*Rx*omc - Ry*st;
+        temp[7] = Rz*Ry*omc + Rx*st;
+        temp[8] = ct + Rz*Rz*omc;
+
+        //console.log(temp)
+        return temp;
+    },
+
+    mul: function(matrixA,vectorB){
+        let v1 = vectorB;
+        let m = matrixA;
+        let v2 = [0,0,0];
+        //v2[0] = v1[0]*m[0]+v1[0]*m[1]+v1[0]*m[2];
+        //v2[1] = v1[1]*m[3]+v1[1]*m[4]+v1[1]*m[5];
+        //v2[2] = v1[2]*m[6]+v1[2]*m[7]+v1[2]*m[8];
+        
+        v2[0] = v1[0]*m[0]+v1[1]*m[1]+v1[2]*m[2];
+        v2[1] = v1[0]*m[3]+v1[1]*m[4]+v1[2]*m[5];
+        v2[2] = v1[0]*m[6]+v1[1]*m[7]+v1[2]*m[8];
+        return v2
     }
 }
-
 
 
 //// gonnna need a 4x4 Matrix & operations.
@@ -184,11 +221,11 @@ var mat3 = {
 var mat4 = {
     //// This one becomes incredibly specific to WebGL rather than general operations.
 
-    create: function (array = new Float32Array(16)){
-    for (var n = 0; n<16; n++){
-        if (n%5==0){array[n] = 1;}
-        else {array[n] = 0;}
-    }
+    create: function (identity=true,array = new Float32Array(16)){
+        for (var n = 0; n<16; n++){
+            if (n%5==0 && identity==true){array[n] = 1;}
+            else {array[n] = 0;}
+        }
     return array;
     },
 
@@ -207,6 +244,19 @@ var mat4 = {
         }
 
         return temp;
+    },
+
+    // Multiply 4x4 matrix with 4x1 vector
+    mul: function (matrixA,vectorB){
+        let v1 = vectorB;
+        let m = matrixA;
+        let v2 = [0,0,0,0];
+        v2[0] = v1[0]*m[0]+v1[1]*m[1]+v1[2]*m[2]+v1[3]*m[3];
+        v2[1] = v1[0]*m[4]+v1[1]*m[5]+v1[2]*m[6]+v1[3]*m[7];
+        v2[2] = v1[0]*m[8]+v1[1]*m[9]+v1[2]*m[10]+v1[3]*m[11];
+        v2[3] = v1[0]*m[12]+v1[1]*m[13]+v1[2]*m[14]+v1[3]*m[15];
+        //console.log(v2);
+        return v2;
     },
 
     // Translate by adding the 3-vector into the fourth column...
@@ -253,7 +303,7 @@ var mat4 = {
         var determinant_mat4 = mat4.determinant(matrix);
         if (determinant_mat4 == 0) {throw 'determinant equels zero';}
         var temp = mat4.adjoint(matrix);
-        console.log(temp);
+        //console.log(temp);
         temp = scale(temp,1/determinant_mat4);
         return temp;
 
@@ -282,8 +332,122 @@ var mat4 = {
         var temp = transpose([e0,e1,e2,e3,e4,e5,e6,e7,e8,e9,e10,e11,e12,e13,e14,e15]);
         return temp;
 
-    }
+    },
+
+
 }
+
+
+var gmat4 = {
+    /// The following functions are defined for the construction of a rotation, scale, & translation matrix in one.
+    /// Thus, the following operations are defined only for the use in a 3d coordinate system... i.e. placing 3x3 matrices in the 4x4 matrix
+    /// Also mainly used for WebGL math
+    /// Used to obtain & edit the specific section in the 4x4 matrix. i.e. rotate the inner 3x3
+    get_sub_element: function(insert_matrix,id=0){
+        let temp3 = mat4.create();
+
+        const index_3x3 = [0,1,2,4,5,6,8,9,10];
+        const index_translation = [3,7,11];
+        const index_scale = [0,5,10];
+
+
+        if (id==0){
+            for (element in insert_matrix){
+                temp3[(index_3x3[element])] = insert_matrix[element];
+            }
+        }
+
+        if (id==1){
+            for (element in insert_matrix){
+                temp3[index_translation[element]] += insert_matrix[element];
+            }
+        }
+
+        if (id==2){
+            for (element in insert_matrix){
+                temp3[index_scale[element]] *= insert_matrix[element];
+            }
+        }
+        return temp3;
+    },
+
+    /// Rotate the compound matrix in 3-space
+    rotate: function(matrix,angle,axis=[1,0,0]){
+        let mat11 = mat3.create();
+        let mat22 = mat3.rotateN2(angle,axis);
+        let mat33 = gmat4.get_sub_element(mat22);
+        //console.log(mat33);
+        //return mat4.create();
+        return mat4.dot(matrix,mat33);
+    },
+    scale: function(matrix,scaled=[1,1,1]){
+        let mat11 = mat3.create();
+        let mat33 = gmat4.get_sub_element(scaled,id=2);
+        //console.log(mat33);
+        //return mat4.create();
+        return mat4.dot(matrix,mat33);
+    },
+    translate: function(matrix,translation=[0,0,0]){
+        let mat11 = mat3.create();
+        let mat33 = gmat4.get_sub_element(translation,id=1);
+        //console.log(mat33);
+        //return mat4.create();
+        return mat4.dot(matrix,mat33);
+    },
+
+    translate2: function(matrix,translation=[0,0,0]){
+        let mat11 = matrix;
+        mat11[3] = translation[0];
+        mat11[7] = translation[1];
+        mat11[11] = translation[2];
+        //let mat33 = gmat4.get_sub_element(translation,id=1,matrix);
+        //console.log(mat33);
+        //return mat4.create();
+        return mat11;
+    },
+
+
+    rotate2: function(matrix,angle,axis){
+        let mat11 = matrix;
+        let mat22 = mat3.rotateN2(angle,axis);
+        let newish = mat4.dot(mat11,mat22);
+        
+        mat11[0] = newish[0];
+        mat11[1] = newish[1];
+        mat11[2] = newish[2];
+        mat11[4] = newish[3];
+        mat11[5] = newish[4];
+        mat11[6] = newish[5];
+        mat11[8] = newish[6];
+        mat11[9] = newish[7];
+        mat11[10] = newish[8];
+        
+        return mat11;
+
+    },
+
+    fromPosRot: function(pos,rot){
+        let temp = mat4.create();
+        temp[0] = rot[0];
+        temp[1] = rot[1];
+        temp[2] = rot[2];
+        temp[4] = rot[3];
+        temp[5] = rot[4];
+        temp[6] = rot[5];
+        temp[8] = rot[6];
+        temp[9] = rot[7];
+        temp[10] = rot[8];
+
+        temp[3] = pos[0];
+        temp[7] = pos[1];
+        temp[11] = pos[2];
+
+        return temp;
+    }
+
+}
+
+
 
 
 //// Some vector stuff now
@@ -376,7 +540,6 @@ function transpose(matrix){
     const dim = Math.sqrt(matrix.length);
     const original = matrix;
     var temp  = new Float32Array(matrix.length);
-
     for (num in original){
         temp[num] = original[dim*(num%dim)+(~~(num/dim))];
         //console.log(dim*(num%dim)+(~~(num/dim)));
@@ -386,10 +549,31 @@ function transpose(matrix){
 
 /// Used to compute a rainbow color gradient from a parameter t.
 function color_func(t){
-
     var r = Math.sin(t);
     var g = Math.sin(t+PI/4);
     var b = Math.sin(t+PI/2);
+    return [r*r,g*g,b*b];
+}
 
-    return [r*r,g*g,b*b]
+
+
+
+function persepective(fov,near,far,aspect){
+    let projection = mat4.create(identity=false);
+    let tana2 = Math.tan(PI/180*fov/2);
+    let atan2 = Math.atan(fov/2);
+    let aspect_ratio = 1.0;
+
+    projection[0] = 1/(aspect*tana2);
+    projection[5] = 1/(tana2);
+    projection[10] = -(-far)/(far-near);
+    projection[11] = (-far*near)/(far-near);
+    projection[14] = 1.0;
+    
+    //projection[10] = -(far)/(far-near);
+    //projection[11] = 1.0;
+    //projection[14] = -(far*near)/(far-near);
+    projection[15] = 0;
+
+    return projection;
 }
